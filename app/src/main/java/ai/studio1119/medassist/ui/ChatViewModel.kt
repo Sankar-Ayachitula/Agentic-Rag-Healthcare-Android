@@ -2,8 +2,8 @@ package ai.studio1119.medassist.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ai.studio1119.medassist.data.ApiClient
-import ai.studio1119.medassist.data.ChatRequest
+import ai.studio1119.medassist.data.StreamEvent
+import ai.studio1119.medassist.data.StreamingClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,12 +15,11 @@ data class UiMessage(
     val fromUser: Boolean,
     val disease: String? = null,
     val sourcePages: List<Int> = emptyList(),
-    val animate: Boolean = false,   // typewriter effect for fresh assistant replies
 )
 
 data class ChatUiState(
     val messages: List<UiMessage> = emptyList(),
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = false,   // waiting for the first token
 )
 
 class ChatViewModel : ViewModel() {
@@ -32,32 +31,60 @@ class ChatViewModel : ViewModel() {
         val trimmed = text.trim()
         if (trimmed.isEmpty() || _state.value.isLoading) return
 
-        // Show the user's message immediately, flip on the loading indicator.
+        // Show the user's message immediately; show "Thinking..." until tokens arrive.
         _state.value = _state.value.copy(
             messages = _state.value.messages + UiMessage(trimmed, fromUser = true),
             isLoading = true,
         )
 
         viewModelScope.launch {
-            val reply = try {
-                val res = ApiClient.api.chat(ChatRequest(trimmed))
-                UiMessage(
-                    text = res.answer,
+            val builder = StringBuilder()
+            var disease: String? = null
+            var pages: List<Int> = emptyList()
+            var assistantAdded = false
+
+            fun upsertAssistant() {
+                val msg = UiMessage(
+                    text = builder.toString(),
                     fromUser = false,
-                    disease = res.disease,
-                    sourcePages = res.sources.orEmpty().mapNotNull { it.page },
-                    animate = true,
+                    disease = disease,
+                    sourcePages = pages,
                 )
-            } catch (e: Exception) {
-                UiMessage(
-                    text = "Sorry, I couldn't reach the server. Is the backend running? (${e.message})",
-                    fromUser = false,
-                )
+                val msgs = _state.value.messages
+                _state.value = if (assistantAdded) {
+                    // replace the last (streaming) assistant message
+                    _state.value.copy(messages = msgs.dropLast(1) + msg)
+                } else {
+                    assistantAdded = true
+                    _state.value.copy(isLoading = false, messages = msgs + msg)
+                }
             }
-            _state.value = _state.value.copy(
-                messages = _state.value.messages + reply,
-                isLoading = false,
-            )
+
+            StreamingClient.streamChat(trimmed).collect { event ->
+                when (event) {
+                    is StreamEvent.Meta -> {
+                        disease = event.disease
+                        pages = event.sourcePages
+                    }
+                    is StreamEvent.Token -> {
+                        builder.append(event.text)
+                        upsertAssistant()   // grows the visible message live
+                    }
+                    is StreamEvent.Done -> {
+                        if (!assistantAdded) upsertAssistant()  // empty-answer safety
+                    }
+                    is StreamEvent.Error -> {
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            messages = _state.value.messages + UiMessage(
+                                "Sorry, I couldn't reach the server. Is the backend " +
+                                    "running? (${event.message})",
+                                fromUser = false,
+                            ),
+                        )
+                    }
+                }
+            }
         }
     }
 }

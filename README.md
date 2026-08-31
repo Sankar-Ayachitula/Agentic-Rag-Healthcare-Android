@@ -7,15 +7,15 @@ backend. A chat UI that talks to the backend's `POST /chat` endpoint.
 ## Stack
 - Kotlin + Jetpack Compose (Material 3)
 - MVVM (ViewModel + StateFlow)
-- Retrofit + Moshi + OkHttp, Kotlin coroutines
-- Word-by-word typewriter reveal for assistant replies
+- OkHttp + Server-Sent Events (SSE), Kotlin coroutines / Flow
+- Real token-by-token streaming: assistant replies grow live as the backend streams them
 
 ## Run it
 1. Start the backend on your machine:
    `uvicorn backend.main:app --reload`   (from the backend repo)
 2. Open **this** project in Android Studio and let Gradle sync.
-3. Run on an **emulator**. The app targets `http://10.0.2.2:8000` (the emulator's
-   alias for your machine's localhost).
+3. Run on an **emulator**. The app streams from `http://10.0.2.2:8000/chat/stream`
+   (`10.0.2.2` is the emulator's alias for your machine's localhost).
 
 ### Physical device or deployed backend
 - Physical device: change `BASE_URL` in `data/ChatApi.kt` to your machine's LAN IP
@@ -24,21 +24,23 @@ backend. A chat UI that talks to the backend's `POST /chat` endpoint.
   the cleartext entries in `res/xml/network_security_config.xml`.
 
 ## API contract
+This app uses the streaming endpoint:
 ```
-POST /chat
-  request:  { "message": "string" }
-  response: { "answer": str, "intent": str, "disease": str|null,
-              "symptoms": [str]|null, "sources": [ { "page": int, ... } ]|null }
+POST /chat/stream   (Server-Sent Events)
+  request: { "message": "string" }
+  stream:  data: {"type":"meta","intent":...,"disease":str|null,"symptoms":[...],"sources":[pageInt,...]}
+           data: {"type":"token","text":"..."}     (many, in order)
+           data: {"type":"done"}
 ```
+The backend also exposes a non-streaming `POST /chat` that returns the full answer at once.
 
 ## Structure
 ```
 app/src/main/java/ai/studio1119/medassist/
   MainActivity.kt          entry point
-  data/ChatModels.kt       request/response data classes
-  data/ChatApi.kt          Retrofit service + client (BASE_URL here)
-  ui/ChatViewModel.kt      state + send logic
-  ui/ChatScreen.kt         chat UI (bubbles, input bar, typewriter, sources)
+  data/StreamingClient.kt  SSE client (BASE_URL here) + StreamEvent types
+  ui/ChatViewModel.kt      state + streaming send logic (grows the message live)
+  ui/ChatScreen.kt         chat UI (bubbles, input bar, disease chip, sources)
   ui/theme/                colors + Material3 theme
 ```
 

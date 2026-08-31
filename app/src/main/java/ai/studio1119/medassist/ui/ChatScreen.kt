@@ -19,7 +19,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.studio1119.medassist.ui.theme.*
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,8 +26,8 @@ fun ChatScreen(vm: ChatViewModel) {
     val state by vm.state.collectAsState()
     val listState = rememberLazyListState()
 
-    // Auto-scroll to the newest message.
-    LaunchedEffect(state.messages.size, state.isLoading) {
+    // Auto-scroll to the newest content as messages grow (including live tokens).
+    LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.text, state.isLoading) {
         val count = state.messages.size + if (state.isLoading) 1 else 0
         if (count > 0) listState.animateScrollToItem(count - 1)
     }
@@ -79,6 +78,7 @@ private fun MessageBubble(msg: UiMessage) {
         }
     } else {
         // Assistant: full-width, no bubble (Claude/ChatGPT style).
+        // The text grows live as streamed tokens arrive.
         Column(Modifier.fillMaxWidth()) {
             msg.disease?.let { d ->
                 AssistChip(
@@ -91,11 +91,7 @@ private fun MessageBubble(msg: UiMessage) {
                     modifier = Modifier.padding(bottom = 6.dp),
                 )
             }
-            if (msg.animate) {
-                TypewriterText(msg.text)
-            } else {
-                Text(msg.text, color = AssistantText, fontSize = 16.sp, lineHeight = 23.sp)
-            }
+            Text(msg.text, color = AssistantText, fontSize = 16.sp, lineHeight = 23.sp)
             if (msg.sourcePages.isNotEmpty()) {
                 Text(
                     "Sources: pages " + msg.sourcePages.distinct().joinToString(", "),
@@ -106,21 +102,6 @@ private fun MessageBubble(msg: UiMessage) {
             }
         }
     }
-}
-
-@Composable
-private fun TypewriterText(fullText: String) {
-    var shown by remember(fullText) { mutableStateOf("") }
-    LaunchedEffect(fullText) {
-        val words = fullText.split(" ")
-        val sb = StringBuilder()
-        words.forEachIndexed { i, w ->
-            sb.append(if (i == 0) w else " $w")
-            shown = sb.toString()
-            delay(30)   // per-word reveal; tune to taste
-        }
-    }
-    Text(shown, color = AssistantText, fontSize = 16.sp, lineHeight = 23.sp)
 }
 
 @Composable
