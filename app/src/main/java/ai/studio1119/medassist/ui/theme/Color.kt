@@ -10,3 +10,4 @@ val AssistantText = Color(0xFF1C1B1E)
 val AccentPurple = Color(0xFF9B5DE5)   // chips / accents
 val SubtleGray = Color(0xFF6B6B6B)     // secondary text (sources, hints)
 val InputBar = Color(0xFFFFFFFF)
+val CodeBackground = Color(0xFFEDE3F0)   // inline `code` spans in replies

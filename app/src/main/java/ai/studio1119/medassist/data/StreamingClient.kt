@@ -66,6 +66,10 @@ object StreamingClient {
                             trySend(StreamEvent.Done)
                             close()
                         }
+                        "error" -> {
+                            trySend(StreamEvent.Error(obj.optString("message", "server error")))
+                            close()
+                        }
                     }
                 } catch (_: Exception) {
                     // ignore a malformed line; keep streaming
@@ -77,7 +81,11 @@ object StreamingClient {
                 t: Throwable?,
                 response: Response?,
             ) {
-                trySend(StreamEvent.Error(t?.message ?: "connection failed"))
+                val reason = when {
+                    response != null && !response.isSuccessful -> "HTTP ${response.code}"
+                    else -> t?.message ?: "connection failed"
+                }
+                trySend(StreamEvent.Error(reason))
                 close()
             }
 

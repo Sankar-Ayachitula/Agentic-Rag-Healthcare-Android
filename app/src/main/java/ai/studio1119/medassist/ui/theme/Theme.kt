@@ -1,9 +1,7 @@
 package ai.studio1119.medassist.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 private val LightColors = lightColorScheme(
@@ -16,18 +14,12 @@ private val LightColors = lightColorScheme(
     onSurface = AssistantText,
 )
 
-private val DarkColors = darkColorScheme(
-    primary = AccentPurple,
-    secondary = AccentPurple,
-)
-
+// Light only: the chat screen paints fixed light surfaces (lavender background,
+// white input bar), so a dark scheme would put light text on white.
 @Composable
-fun MedAssistTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun MedAssistTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = LightColors,
         content = content
     )
 }
