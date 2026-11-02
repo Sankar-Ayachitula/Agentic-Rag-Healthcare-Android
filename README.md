@@ -4,6 +4,16 @@ Native Android client (Kotlin + Jetpack Compose) for the
 [Agentic-Rag-Healthcare](https://github.com/Sankar-Ayachitula/Agentic-Rag-Healthcare)
 backend. A chat UI that streams answers from the backend's `POST /chat/stream` endpoint.
 
+## Demo
+
+<p align="center">
+  <img src="docs/demo.gif" alt="MedAssist streaming answers on Android" width="320">
+</p>
+
+A symptom report gets a predicted disease chip (**Likely: Malaria**), then a
+medical question is answered from the encyclopedia. Replies type out live with
+Markdown formatting and follow the scroll. [Full-quality video](docs/demo.mp4).
+
 ## Stack
 - Kotlin + Jetpack Compose (Material 3)
 - MVVM (ViewModel + StateFlow)
